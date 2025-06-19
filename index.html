@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WW3.FUN - A Memorial for Fallen Degens</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Orbitron for a military/sci-fi feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Apply the Orbitron font to the body */
+        body {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Custom styling for the MW2 aesthetic */
+        .mw2-bg {
+            background-color: #0a0a0a;
+            background-image:
+                linear-gradient(rgba(10, 10, 10, 0.8), rgba(10, 10, 10, 0.95)),
+                url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        }
+        .mw2-title {
+            color: #e0e0e0;
+            text-shadow: 0 0 5px #4dff4d, 0 0 10px #4dff4d, 0 0 15px #000, 0 0 20px #000;
+        }
+        .mw2-input {
+            background-color: rgba(20, 20, 20, 0.7);
+            border: 1px solid #3a3a3a;
+            color: #b0b0b0;
+            transition: all 0.3s ease;
+        }
+        .mw2-input::placeholder {
+            color: #666;
+        }
+        .mw2-input:focus {
+            outline: none;
+            border-color: #4dff4d;
+            box-shadow: 0 0 10px rgba(77, 255, 77, 0.5);
+            color: #e0e0e0;
+        }
+        .mw2-button {
+            background-color: rgba(77, 255, 77, 0.1);
+            border: 1px solid #4dff4d;
+            color: #4dff4d;
+            text-shadow: 0 0 5px #000;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .mw2-button:hover {
+            background-color: rgba(77, 255, 77, 0.9);
+            color: #0a0a0a;
+            box-shadow: 0 0 15px #4dff4d;
+            text-shadow: none;
+        }
+        /* Static TV noise effect for the canvas background */
+        #tomb-canvas-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('https://www.transparenttextures.com/patterns/subtle-noise.png');
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 1;
+        }
+        /* Hide spinner controls for number input */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="mw2-bg text-gray-300">
+
+    <div class="min-h-screen flex flex-col items-center justify-center p-4">
+        <!-- Main Title -->
+        <h1 class="mw2-title text-5xl md:text-7xl font-black tracking-widest mb-2">WW3.FUN</h1>
+        <p class="text-sm md:text-base text-green-400 mb-8 tracking-wider">A MEMORIAL FOR FALLEN DEGENS | $WW3</p>
+
+        <!-- Input Section -->
+        <div class="w-full max-w-md bg-black bg-opacity-30 p-6 rounded-lg border border-gray-800 shadow-2xl">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="relative flex-grow">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">@</span>
+                    <input type="text" id="x-handle-input" placeholder="YourXHandle" class="mw2-input w-full pl-8 pr-4 py-3 rounded-md text-lg">
+                </div>
+                <button id="generate-button" class="mw2-button px-6 py-3 rounded-md font-bold text-lg w-full sm:w-auto">
+                    MINT MEMORIAL
+                </button>
+            </div>
+             <p id="loading-message" class="text-center text-green-400 mt-4 hidden">Minting your memorial...</p>
+             <!-- This container will be shown after generation -->
+             <div id="post-generation-controls" class="mt-4 text-center hidden">
+                 <button id="download-button" class="mw2-button px-4 py-2 rounded-md text-base">
+                    Download Memorial
+                 </button>
+             </div>
+        </div>
+
+        <!-- Three.js Canvas Container -->
+        <div id="tomb-canvas-container" class="w-full max-w-4xl h-96 mt-8 rounded-lg border border-gray-800 relative hidden">
+            <!-- Canvas will be inserted here by Three.js -->
+        </div>
+        <p id="canvas-helper" class="text-center text-gray-500 mt-2 text-sm hidden">Click and drag to rotate the memorial.</p>
+    </div>
+
+    <!-- Three.js and OrbitControls -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+        // --- DOM Elements ---
+        const generateBtn = document.getElementById('generate-button');
+        const handleInput = document.getElementById('x-handle-input');
+        const canvasContainer = document.getElementById('tomb-canvas-container');
+        const canvasHelper = document.getElementById('canvas-helper');
+        const loadingMessage = document.getElementById('loading-message');
+        const postGenerationControls = document.getElementById('post-generation-controls');
+        const downloadBtn = document.getElementById('download-button');
+
+        // --- Three.js Scene Setup ---
+        let scene, camera, renderer, controls, font;
+        let currentTomb = null;
+
+        const fontLoader = new FontLoader();
+
+        // Pre-load the font to prevent delays on first generation
+        fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json', (loadedFont) => {
+            font = loadedFont;
+        });
+
+
+        function initThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x0a0a0a, 10, 50);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(0, 4, 10);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                preserveDrawingBuffer: true // Required for screenshots
+            });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.minDistance = 5;
+            controls.maxDistance = 30;
+            controls.maxPolarAngle = Math.PI / 2; // Prevent going below ground
+            controls.target.set(0, 2, 0);
+            controls.update();
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 1); // Soft white light
+            scene.add(ambientLight);
+
+            const spotLight = new THREE.SpotLight(0x4dff4d, 500, 100, Math.PI / 4, 0.5, 2);
+            spotLight.position.set(10, 20, 10);
+            spotLight.castShadow = true;
+            spotLight.shadow.mapSize.width = 1024;
+            spotLight.shadow.mapSize.height = 1024;
+            scene.add(spotLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 5, 50);
+            pointLight.position.set(-5, 5, 5);
+            scene.add(pointLight);
+
+            // Ground plane
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0.2 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+
+            animate();
+        }
+
+        // --- Tomb Generation ---
+        function generateTomb(handle) {
+            // Remove previous tomb if it exists
+            if (currentTomb) {
+                scene.remove(currentTomb);
+            }
+            if (!handle) return; // Don't generate if handle is empty
+
+            // A list of potential epitaphs for our fallen degen
+            const epitaphs = [
+                "REKT",
+                "BOUGHT THE TOP",
+                "SOLD THE BOTTOM",
+                "ETERNALLY HODLING",
+                "PAPER HANDED",
+                "SENT IT TO ZERO",
+                "ONE OF US",
+                "NGMI",
+                "DEGEN TO THE END",
+                "HE APED IN",
+                "DIED A LEGEND"
+            ];
+
+            // Create a pseudo-random number generator based on the handle string
+            // This ensures the same handle always produces the same result
+            let seed = 0;
+            for (let i = 0; i < handle.length; i++) {
+                seed += handle.charCodeAt(i);
+            }
+            const random = () => {
+                var x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
+            };
+
+            const tombGroup = new THREE.Group();
+            
+            // Determine tomb type randomly based on handle
+            const tombTypes = ['slab', 'cross'];
+            const tombType = tombTypes[Math.floor(random() * tombTypes.length)];
+
+            // --- Define Tomb Geometry ---
+            const baseHeight = 0.5 + random() * 0.5;
+            const baseWidth = 4 + random() * 2;
+            const baseDepth = 2.5 + random() * 1;
+
+            // --- Create Materials ---
+            const tombMaterial = new THREE.MeshStandardMaterial({
+                color: 0x555555,
+                roughness: 0.6 + random() * 0.2,
+                metalness: 0.1 + random() * 0.2,
+            });
+             const textMaterial = new THREE.MeshStandardMaterial({
+                color: 0x4dff4d,
+                emissive: 0x4dff4d,
+                emissiveIntensity: 0.4,
+                roughness: 0.4,
+                metalness: 0.8,
+            });
+
+            // --- Create Base (common to all types) ---
+            const baseGeo = new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth);
+            const baseMesh = new THREE.Mesh(baseGeo, tombMaterial);
+            baseMesh.position.y = baseHeight / 2;
+            baseMesh.castShadow = true;
+            baseMesh.receiveShadow = true;
+            tombGroup.add(baseMesh);
+
+            // Add a random degen decoration
+            addDegenDecoration(tombGroup, baseWidth, baseHeight, baseDepth, random);
+
+            let mainStoneMesh; // This will hold the main part of the tomb for text placement
+            let textPlacement = { y: 0, z: 0 };
+
+
+            // --- Create Meshes based on type ---
+            switch (tombType) {
+                case 'cross': {
+                    const crossBarHeight = 1 + random() * 0.5;
+                    const crossBarWidth = 4 + random() * 1.5;
+                    const crossBarDepth = 0.8 + random() * 0.2;
+                    const stemHeight = 5 + random() * 2;
+                    const stemWidth = 1.2 + random() * 0.5;
+
+                    const stemGeo = new THREE.BoxGeometry(stemWidth, stemHeight, crossBarDepth);
+                    const stemMesh = new THREE.Mesh(stemGeo, tombMaterial);
+                    stemMesh.castShadow = true;
+                    stemMesh.receiveShadow = true;
+                    stemMesh.position.y = baseHeight + stemHeight / 2;
+                    
+                    const crossBarGeo = new THREE.BoxGeometry(crossBarWidth, crossBarHeight, crossBarDepth);
+                    const crossBarMesh = new THREE.Mesh(crossBarGeo, tombMaterial);
+                    crossBarMesh.castShadow = true;
+                    crossBarMesh.receiveShadow = true;
+                    crossBarMesh.position.y = baseHeight + stemHeight * 0.7;
+
+                    tombGroup.add(stemMesh, crossBarMesh);
+                    mainStoneMesh = stemMesh; // Text on the stem
+                    textPlacement = { y: baseHeight + stemHeight * 0.45, z: crossBarDepth / 2 + 0.01 };
+                    break;
+                }
+
+                default: // 'slab'
+                case 'slab': {
+                    const mainHeight = 4 + random() * 3;
+                    const mainWidth = baseWidth * (0.8 + random() * 0.15);
+                    const mainDepth = baseDepth * 0.5;
+                    const mainGeo = new THREE.BoxGeometry(mainWidth, mainHeight, mainDepth);
+                    const mainMesh = new THREE.Mesh(mainGeo, tombMaterial);
+                    mainMesh.position.y = baseHeight + (mainHeight / 2);
+                    mainMesh.castShadow = true;
+                    mainMesh.receiveShadow = true;
+                    tombGroup.add(mainMesh);
+                    mainStoneMesh = mainMesh;
+                    textPlacement = { y: baseHeight + mainHeight * 0.6, z: mainDepth / 2 + 0.01 };
+                    break;
+                }
+            }
+
+
+            // --- Create Text Geometry ---
+            if(font && mainStoneMesh){
+                // Handle Text
+                const handleText = `@${handle}`;
+                const handleGeo = new TextGeometry(handleText, {
+                    font: font,
+                    size: 0.5,
+                    height: 0.1,
+                    curveSegments: 12,
+                });
+                handleGeo.computeBoundingBox();
+                const handleMesh = new THREE.Mesh(handleGeo, textMaterial);
+                
+                // Center the handle text
+                const handleWidth = handleGeo.boundingBox.max.x - handleGeo.boundingBox.min.x;
+                handleMesh.position.x = -handleWidth / 2;
+                handleMesh.position.y = textPlacement.y; // Positioned in the upper part
+                handleMesh.position.z = textPlacement.z; // Slightly in front
+                handleMesh.castShadow = true;
+                tombGroup.add(handleMesh);
+
+                // Epitaph Text
+                const epitaph = epitaphs[Math.floor(random() * epitaphs.length)];
+                const epitaphGeo = new TextGeometry(epitaph, {
+                    font: font,
+                    size: 0.35, // Slightly smaller
+                    height: 0.1,
+                    curveSegments: 12,
+                });
+                epitaphGeo.computeBoundingBox();
+                const epitaphMesh = new THREE.Mesh(epitaphGeo, textMaterial);
+
+                // Center the epitaph text
+                const epitaphWidth = epitaphGeo.boundingBox.max.x - epitaphGeo.boundingBox.min.x;
+                epitaphMesh.position.x = -epitaphWidth / 2;
+                epitaphMesh.position.y = textPlacement.y - 0.6; // Positioned below handle
+                epitaphMesh.position.z = textPlacement.z;
+                epitaphMesh.castShadow = true;
+                tombGroup.add(epitaphMesh);
+            }
+
+            currentTomb = tombGroup;
+            scene.add(currentTomb);
+        }
+
+        // --- Degen Decoration ---
+        function addDegenDecoration(tombGroup, baseWidth, baseHeight, baseDepth, random) {
+            const decorationTypes = ['rocket', 'diamond', 'coin'];
+            const decorationType = decorationTypes[Math.floor(random() * decorationTypes.length)];
+
+            const decorationGroup = new THREE.Group();
+            let decorationMaterial;
+
+            switch (decorationType) {
+                case 'rocket':
+                    decorationMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 });
+                    const bodyGeo = new THREE.CylinderGeometry(0.25, 0.25, 1, 16);
+                    const bodyMesh = new THREE.Mesh(bodyGeo, decorationMaterial);
+                    
+                    const noseGeo = new THREE.ConeGeometry(0.25, 0.5, 16);
+                    const noseMesh = new THREE.Mesh(noseGeo, decorationMaterial);
+                    noseMesh.position.y = 0.5; // on top of body
+
+                    decorationGroup.add(bodyMesh, noseMesh);
+                    decorationGroup.scale.set(0.8, 0.8, 0.8);
+                    decorationGroup.rotation.z = Math.PI / 7; // Tilted
+                    break;
+
+                case 'diamond':
+                    decorationMaterial = new THREE.MeshStandardMaterial({ color: 0x00eeee, emissive: 0x00aaaa, roughness: 0.1, metalness: 0.5, transparent: true, opacity: 0.9 });
+                    const diamondGeo = new THREE.OctahedronGeometry(0.4, 0);
+                    const diamondMesh = new THREE.Mesh(diamondGeo, decorationMaterial);
+                    decorationGroup.add(diamondMesh);
+                    decorationGroup.rotation.x = random() * Math.PI;
+                    decorationGroup.rotation.y = random() * Math.PI;
+                    break;
+
+                case 'coin':
+                    decorationMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.8, roughness: 0.3, emissive: 0xccad00, emissiveIntensity: 0.2 });
+                    const coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 24);
+                    const coinMesh = new THREE.Mesh(coinGeo, decorationMaterial);
+                    decorationGroup.add(coinMesh);
+                    decorationGroup.rotation.x = Math.PI / 1.8; // Tilted up
+                    break;
+            }
+            
+            // Position the decoration at the base of the tomb
+            decorationGroup.position.set(
+                (baseWidth / 4) * (random() > 0.5 ? 1 : -1), // place on left or right side of base
+                baseHeight + 0.3, // on top of the base
+                baseDepth / 2 
+            );
+            
+            // Ensure all children also cast shadows
+            decorationGroup.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                }
+            });
+
+            tombGroup.add(decorationGroup);
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- Event Handlers ---
+        function onWindowResize() {
+            if (!canvasContainer.clientWidth || !canvasContainer.clientHeight) return;
+            camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        }
+
+        generateBtn.addEventListener('click', () => {
+            const handle = handleInput.value.trim();
+            if (!handle) {
+                handleInput.focus();
+                return;
+            }
+
+            loadingMessage.classList.remove('hidden');
+            generateBtn.disabled = true;
+
+            // Show canvas if it's the first time
+            if (canvasContainer.classList.contains('hidden')) {
+                canvasContainer.classList.remove('hidden');
+                canvasHelper.classList.remove('hidden');
+                initThreeJS();
+            }
+
+            // A small delay to simulate loading and allow the font to be ready
+            setTimeout(() => {
+                generateTomb(handle);
+                loadingMessage.classList.add('hidden');
+                generateBtn.disabled = false;
+                postGenerationControls.classList.remove('hidden'); // Show download button
+            }, 500);
+        });
+        
+        // Allow pressing Enter to generate
+        handleInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                generateBtn.click();
+            }
+        });
+
+        // Handle Download
+        downloadBtn.addEventListener('click', () => {
+            // Force a render to make sure the scene is up to date.
+            renderer.render(scene, camera);
+
+            const handle = handleInput.value.trim().replace('@','') || 'degen';
+            const dataURL = renderer.domElement.toDataURL('image/png');
+            
+            // Create a temporary link element and trigger the download
+            const link = document.createElement('a');
+            link.href = dataURL;
+            link.download = `memorial-for-${handle}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+    </script>
+</body>
+</html>
