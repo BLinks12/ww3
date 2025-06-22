@@ -546,7 +546,7 @@
         // Handle Sharing
         shareBtn.addEventListener('click', () => {
             const handle = handleInput.value.trim().replace('@','');
-            const shareText = `A memorial for a fallen degen, @${handle}. Gone but not forgotten. 🫡\n\nCreate your own at #WW3FUN. $WW3`;
+            const shareText = `A memorial for a fallen degen, @${handle}. Gone but not forgotten. 🫡\n\nCreate your own at https://www.ww3fun.fun/. $WW3`;
             const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
             window.open(twitterUrl, '_blank');
         });
