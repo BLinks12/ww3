@@ -104,6 +104,9 @@
                  <button id="download-button" class="mw2-button px-4 py-2 rounded-md text-base">
                     Download Memorial
                  </button>
+                 <button id="share-button" class="mw2-button px-4 py-2 rounded-md text-base ml-2">
+                    Share on X
+                 </button>
              </div>
         </div>
 
@@ -137,6 +140,7 @@
         const loadingMessage = document.getElementById('loading-message');
         const postGenerationControls = document.getElementById('post-generation-controls');
         const downloadBtn = document.getElementById('download-button');
+        const shareBtn = document.getElementById('share-button');
 
         // --- Three.js Scene Setup ---
         let scene, camera, renderer, controls, font;
@@ -228,7 +232,11 @@
                 "NGMI",
                 "DEGEN TO THE END",
                 "HE APED IN",
-                "DIED A LEGEND"
+                "DIED A LEGEND",
+                "RUGGED",
+                "LIQUIDATED",
+                "FOR THE MEME",
+                "WENT TO VALHALLA"
             ];
 
             // Create a pseudo-random number generator based on the handle string
@@ -245,7 +253,7 @@
             const tombGroup = new THREE.Group();
             
             // Determine tomb type randomly based on handle
-            const tombTypes = ['slab', 'cross'];
+            const tombTypes = ['slab', 'cross', 'obelisk'];
             const tombType = tombTypes[Math.floor(random() * tombTypes.length)];
 
             // --- Define Tomb Geometry ---
@@ -306,6 +314,31 @@
                     tombGroup.add(stemMesh, crossBarMesh);
                     mainStoneMesh = stemMesh; // Text on the stem
                     textPlacement = { y: baseHeight + stemHeight * 0.45, z: crossBarDepth / 2 + 0.01 };
+                    break;
+                }
+
+                case 'obelisk': {
+                    const obeliskHeight = 6 + random() * 3;
+                    const obeliskWidth = 1.2 + random() * 0.4;
+                    
+                    // Shaft
+                    const shaftGeo = new THREE.BoxGeometry(obeliskWidth, obeliskHeight, obeliskWidth);
+                    const shaftMesh = new THREE.Mesh(shaftGeo, tombMaterial);
+                    shaftMesh.position.y = baseHeight + obeliskHeight / 2;
+                    shaftMesh.castShadow = true;
+                    shaftMesh.receiveShadow = true;
+
+                    // Pyramidion
+                    const pyramidGeo = new THREE.ConeGeometry(obeliskWidth / 2 * 1.1, obeliskWidth, 4);
+                    const pyramidMesh = new THREE.Mesh(pyramidGeo, tombMaterial);
+                    pyramidMesh.position.y = baseHeight + obeliskHeight;
+                    pyramidMesh.rotation.y = Math.PI / 4;
+                    pyramidMesh.castShadow = true;
+                    pyramidMesh.receiveShadow = true;
+                    
+                    tombGroup.add(shaftMesh, pyramidMesh);
+                    mainStoneMesh = shaftMesh;
+                    textPlacement = { y: baseHeight + obeliskHeight * 0.4, z: obeliskWidth / 2 + 0.01 };
                     break;
                 }
 
@@ -374,7 +407,7 @@
 
         // --- Degen Decoration ---
         function addDegenDecoration(tombGroup, baseWidth, baseHeight, baseDepth, random) {
-            const decorationTypes = ['rocket', 'diamond', 'coin'];
+            const decorationTypes = ['rocket', 'diamond', 'coin', 'skull'];
             const decorationType = decorationTypes[Math.floor(random() * decorationTypes.length)];
 
             const decorationGroup = new THREE.Group();
@@ -410,6 +443,20 @@
                     const coinMesh = new THREE.Mesh(coinGeo, decorationMaterial);
                     decorationGroup.add(coinMesh);
                     decorationGroup.rotation.x = Math.PI / 1.8; // Tilted up
+                    break;
+                case 'skull':
+                    decorationMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8, metalness: 0.1 });
+                    const headGeo = new THREE.SphereGeometry(0.3, 16, 16);
+                    const headMesh = new THREE.Mesh(headGeo, decorationMaterial);
+                    headMesh.scale.y = 0.8; // slightly squashed
+                    
+                    const jawGeo = new THREE.BoxGeometry(0.35, 0.2, 0.3);
+                    const jawMesh = new THREE.Mesh(jawGeo, decorationMaterial);
+                    jawMesh.position.y = -0.2;
+                    
+                    decorationGroup.add(headMesh, jawMesh);
+                    decorationGroup.scale.set(0.9, 0.9, 0.9);
+                    decorationGroup.rotation.y = (random() - 0.5) * Math.PI / 2; // slightly turned
                     break;
             }
             
@@ -494,6 +541,14 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        });
+
+        // Handle Sharing
+        shareBtn.addEventListener('click', () => {
+            const handle = handleInput.value.trim().replace('@','');
+            const shareText = `A memorial for a fallen degen, @${handle}. Gone but not forgotten. 🫡\n\nCreate your own at #WW3FUN. $WW3`;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+            window.open(twitterUrl, '_blank');
         });
 
     </script>
